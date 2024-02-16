@@ -95,7 +95,7 @@ namespace BlazorApp1.Server.Repositorio
 
                 await Comm.ExecuteNonQueryAsync();
             }
-            catch(SqlException ex)
+            catch (SqlException ex)
             {
                 if (transaccion != null)
                     transaccion.Rollback();
@@ -376,6 +376,98 @@ namespace BlazorApp1.Server.Repositorio
                 sqlConexion.Dispose();
             }
             return listaCursos;
+        }
+
+        public async Task<UsuarioLogIn> CambiarPass(UsuarioLogIn usuarioLogIn)
+        {
+            SqlConnection sqlConexion = conexion();
+            SqlCommand Comm = null!;
+            UsuarioLogIn logIn = null!;
+            try
+            {
+                sqlConexion.Open();
+                Comm = sqlConexion.CreateCommand();
+                Comm.CommandText = "dbo.CambiarPass";
+                Comm.CommandType = CommandType.StoredProcedure;
+                Comm.Parameters.Add("@email", SqlDbType.VarChar, 500).Value = usuarioLogIn.EmailLogin;
+                Comm.Parameters.Add("@pass", SqlDbType.VarChar, 500).Value = usuarioLogIn.Password;
+
+                await Comm.ExecuteNonQueryAsync();
+            }
+            catch (SqlException ex)
+            {
+                if (logIn == null)
+                    logIn = new UsuarioLogIn();
+                logIn.error = new Error();
+                logIn.error.mensaje = "Se produjo un error al cambiar la password del usuario en nuestra BBDD : " + ex.Message;
+                logIn.error.mostrarEnPantalla = true;
+                log.LogError("Se produjo un error al cambiar la password del usuario :" + ex.ToString());
+
+            }
+            catch (Exception ex)
+            {
+                if (logIn == null)
+                    logIn = new UsuarioLogIn();
+
+                logIn.error = new Error();
+                logIn.error.mensaje = "Se produjo un error al cambiar la password del usuario: " + ex.ToString();
+                logIn.error.mostrarEnPantalla = false;
+                log.LogError("Se produjo un error al cambiar la password del usuario:" + ex.ToString());
+
+            }
+            finally
+            {
+                Comm.Dispose();
+                sqlConexion.Close();
+                sqlConexion.Dispose();
+            }
+            return logIn;
+        }
+
+        public async Task<UsuarioLogIn> ConfirmarAlta(String email)
+        {
+            SqlConnection sqlConexion = conexion();
+            SqlCommand Comm = null;
+            UsuarioLogIn logIn = null;
+            try
+            {
+                sqlConexion.Open();
+                Comm = sqlConexion.CreateCommand();
+                Comm.CommandText = "dbo.ActivarUsuario";
+                Comm.CommandType = CommandType.StoredProcedure;
+                Comm.Parameters.Add("@email", SqlDbType.VarChar, 500).Value = email;
+
+                await Comm.ExecuteNonQueryAsync();
+
+            }
+            catch (SqlException ex)
+            {
+                if (logIn == null)
+                    logIn = new UsuarioLogIn();
+                logIn.error = new Error();
+                logIn.error.mensaje = "Se produjo un error al activar el usuario en nuestra BBDD : " + ex.Message;
+                logIn.error.mostrarEnPantalla = true;
+                log.LogError("Se produjo un error al activar el usuario:" + ex.ToString());
+
+            }
+            catch (Exception ex)
+            {
+                if (logIn == null)
+                    logIn = new UsuarioLogIn();
+
+                logIn.error = new Error();
+                logIn.error.mensaje = "Se produjo un error al activar el usuario: " + ex.ToString();
+                logIn.error.mostrarEnPantalla = false;
+                log.LogError("Se produjo un error al activar el usuario:" + ex.ToString());
+
+            }
+            finally
+            {
+                Comm.Dispose();
+                sqlConexion.Close();
+                sqlConexion.Dispose();
+            }
+            return logIn;
         }
     }
 }

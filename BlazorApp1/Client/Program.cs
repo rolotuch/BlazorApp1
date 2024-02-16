@@ -1,4 +1,5 @@
 using BlazorApp1.Client;
+using BlazorApp1.Client.Servicios;
 using Blazored.SessionStorage;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
@@ -15,5 +16,8 @@ builder.Services.AddBlazoredSessionStorage();
 //para trabajar el login
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, Autenticacion>();
+//preparado para inyectar en el las vistas
+
+builder.Services.AddScoped<IServicioTienda, ServicioTienda>();
 
 await builder.Build().RunAsync();

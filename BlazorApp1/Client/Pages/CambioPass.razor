@@ -1,7 +1,101 @@
-﻿@page "/CambioPass"
+﻿@page "/CambioPass/{i}"
+@inject HttpClient ClienteHttp
+@inject NavigationManager navigationmanager
+@using BlazorApp1.Client.Servicios
+@inject ILogger<CambioPass> l;
+@inject IServicioTienda servicioTienda
 
-<h3>CambioPass es una prueba con git.</h3>
+<br />
+
+<div class="main">
+    <EditForm Model="@usuarioLogin" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <div>
+            <h3 style="font-weight:bold; color:sienna">Cambio password</h3>
+        </div>
+        <div>
+            <br />
+        </div>
+        <div class="form-group row">
+            <InputText type="password" class="form-control col-12" @bind-Value="usuarioLogin.Password" placeholder="Nueva Password" />
+            <ValidationMessage For="@(() => usuarioLogin.Password)" />
+        </div>
+        <br />
+        <div class="form-group row">
+            <input type="submit" class="form-control col-12 btn btn-primary" value="Cambio pass" @onclick="cambiarPassword" />
+        </div>
+    </EditForm>
+</div>
+
+@if (mostrarError)
+{
+    <DetallesError OnCerrar="@(() => cerrarCapa())" TextoError="@mensajeError"></DetallesError>
+}
 
 @code {
 
+    [Parameter]
+    public string i { get; set; }
+
+    UsuarioLogIn usuarioLogin = new UsuarioLogIn();
+    Boolean mostrarError = false;
+    String mensajeError = String.Empty;
+    String tokenPeticion = String.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            tokenPeticion = await servicioTienda.ObtenerToken(); // ObtenerToken();
+            if (i != String.Empty)
+            {
+                ClienteHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
+                usuarioLogin.EmailLogin = await ClienteHttp.GetStringAsync("api/DesCifrar/" + i);
+            }
+        }
+        catch (Exception ex)
+        {
+            l.LogError("Se produjo un error: " + ex.ToString());
+            mensajeError = ex.Message;
+            mostrarError = true;
+        }
+    }
+
+    public void HandleValidSubmit()
+    {
+        Console.WriteLine("OnValidSubmit");
+    }
+
+    //se comvirtio en servicio por lo cual se modifico el metodo
+    private async void cambiarPassword()
+    {
+        try
+        {
+            if (usuarioLogin.EmailLogin != null && usuarioLogin.Password != null)
+            {
+                var respuesta = await servicioTienda.CambiarPass(tokenPeticion, usuarioLogin);
+
+                if (respuesta.IsSuccessStatusCode)
+                {
+                    navigationmanager.NavigateTo("/IniciarSesion", true);
+                }
+                else
+                    throw new Exception("Intentelo de nuevo se produjo un error");
+            }
+            else
+                throw new Exception("Datos inocorrectos");
+        }
+        catch (Exception ex)
+        {
+            l.LogError("Se produjo un error: " + ex.ToString());
+            mostrarError = true;
+        }
+    }
+
+    //el metodo obtener token se comvirtio en servicio por lo que no necesitamos crearlo aca sl igual que le metdo comprobar errores    
+
+    private void cerrarCapa()
+    {
+        mostrarError = false;
+    }
 }

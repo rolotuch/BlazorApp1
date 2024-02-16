@@ -1,12 +1,12 @@
 ﻿@page "/AltaUsuario"
+@using BlazorApp1.Client.Servicios
 @inject NavigationManager navigationManager
 @inject HttpClient ClienteHttp
 @* lo pasmaos a import.razor para hacerlo para todos  *@
 @* @using Microsoft.Extensions.Logging *@
 @inject ILogger<AltaUsuario> l;
-@using System.Net.Http.Headers
-@using Microsoft.Extensions.Configuration;
-@inject IConfiguration Configuration
+@inject IServicioTienda servicioTienda
+
 
 <br />
 <div class="main">
@@ -61,7 +61,9 @@
                 <input type="button" value="Cancelar" class="btn btn-danger" @onclick="Cancelar" />
             </div>
         </div>
+
     </EditForm>
+    @urlResultado
 </div>
 
 @if (mostrarError)
@@ -75,6 +77,7 @@
     Boolean mostrarError = false;
     String mensajeError = String.Empty;
     String tokenPeticion = String.Empty;
+    String urlResultado = String.Empty;
 
     public void HandleValidSubmit()
     {
@@ -85,15 +88,17 @@
     {
         try
         {
-            tokenPeticion = await ObtenerToken();
+            tokenPeticion = await servicioTienda.ObtenerToken();
         }
         catch (Exception ex)
         {
             l.LogError("Se produjo un error: " + ex.ToString());
+            //se agrego tambien
+            mensajeError = ex.Message;
             mostrarError = true;
         }
     }
-
+    // aca se tuvo que modificar el metodo nueva alta para utilizar el servicio
     async protected void NuevaAlta()
     {
         try
@@ -101,35 +106,7 @@
             if (nuevoUsuario.Email != null && nuevoUsuario.Password != null &&
                 nuevoUsuario.Nombre != null && nuevoUsuario.Apellido != null)
             {
-                ClienteHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
-                var respuesta = await ClienteHttp.PostAsJsonAsync("api/AltaUsuario", nuevoUsuario);
-
-                if (respuesta.IsSuccessStatusCode)
-                {
-                    Usuario usuarioRespuesta = await respuesta.Content.ReadFromJsonAsync<Usuario>();
-
-                    if (usuarioRespuesta.error == null || usuarioRespuesta.error.mensaje == String.Empty)
-                        navigationManager.NavigateTo("/LogIn");
-                    else
-                    {
-                        if (usuarioRespuesta.error.mostrarEnPantalla)
-                        {
-                            //Capa error con mensaje para usuario
-                            mostrarError = true;
-                            mensajeError = usuarioRespuesta.error.mensaje;
-                            StateHasChanged();
-
-                        }
-                        else
-                        {
-                            // Capa error generica
-                            l.LogError("Se produjo un error: " + usuarioRespuesta.error.mensaje);
-                            throw new Exception("Intentelo de nuevo se produjo un error");
-                        }
-                    }
-                }
-                else
-                    throw new Exception("Intentelo de nuevo se produjo un error");
+                urlResultado = await servicioTienda.AltaUsuario(tokenPeticion, nuevoUsuario);
             }
         }
         catch (Exception ex)
@@ -137,6 +114,10 @@
             l.LogError("Se produjo un error: " + ex.ToString());
             mostrarError = true;
             // Capa error generica
+        }
+        finally
+        {
+            StateHasChanged();
         }
     }
 
@@ -149,47 +130,7 @@
     {
         mostrarError = false;
     }
-
-    private async Task<string> ObtenerToken()
-    {
-    LoginApi loginApi = new LoginApi();
-
-    string token = String.Empty;
-    loginApi.usuarioAPI = Configuration.GetValue<string>("DatosVarios:UsuarioAPI");
-    loginApi.passAPI = Configuration.GetValue<string>("DatosVarios:PassAPI");
-
-    var respuesta = await ClienteHttp.PostAsJsonAsync("api/Login", loginApi);
-
-    if (respuesta.IsSuccessStatusCode)
-    {
-        UsuarioApi usuarioAPI = await respuesta.Content.ReadFromJsonAsync<UsuarioApi>();
-    comprobarError(usuarioAPI.error);
-    token = usuarioAPI.Token;
-
-    }
-    else
-        throw new Exception("Se produjo un error");
-
-    return token;
-    }
-
-private void comprobarError(Error error)
-{
-
-    if (error != null)
-    {
-    if (error.mostrarEnPantalla)
-    {
-        mostrarError = true;
-        mensajeError = error.mensaje;
-        StateHasChanged();
-
-    }
-    else
-    {
-        l.LogError("Se produjo un error: " + error.mensaje);
-        throw new Exception("Intentelo de nuevo se produjo un error");
-    }
-    }
-}
+    //aca estaba el metodo para obtener el token pero este se convirtio a un servicio por lo que se quito de aca
+    //tambien se elimino el metodo de comprobar error
+    
 }

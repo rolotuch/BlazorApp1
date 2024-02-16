@@ -209,6 +209,65 @@ namespace BlazorApp1.Server.Controllers
             return resultado;
 
         }
+
+        [Route("api/Cifrar/{cadena}")]
+        [HttpGet]
+        [Authorize]
+        public String Cifrar(String cadena)
+        {
+            return Seguridad.Encriptar(cadena);
+        }
+
+        [Route("api/DesCifrar/{cadena}")]
+        [HttpGet]
+        [Authorize]
+        public String DesCifrar(String cadena)
+        {
+            return Seguridad.DesEncriptar(cadena);
+        }
+
+        [Route("api/CambiarPass")]
+        [HttpPost]
+        [Authorize]
+        public async Task<ActionResult<UsuarioLogIn>> CambiarPass(UsuarioLogIn login)
+        {
+
+            UsuarioLogIn resultado = new UsuarioLogIn();
+            try
+            {
+                if (login == null)
+                    return BadRequest();
+
+                resultado = await generalRepositorio.CambiarPass(login);
+
+            }
+            catch (Exception ex)
+            {
+                log.LogError("Se produjo un error al cambiar password  en el controlador: " + ex.ToString());
+                throw new Exception("Se produjo un error al  al cambiar password : " + ex.ToString());
+
+            }
+            return resultado;
+        }
+
+        [Route("api/ConfirmarAlta")]
+        [HttpPost]
+        [Authorize]
+        public async Task<ActionResult<UsuarioLogIn>> ConfirmarAlta(UsuarioLogIn login)
+        {
+            UsuarioLogIn resultado = new UsuarioLogIn();
+            try
+            {
+                resultado = await generalRepositorio.ConfirmarAlta(login.EmailLogin);
+            }
+            catch (Exception ex)
+            {
+                log.LogError("Se produjo un error al activar el usuario : " + ex.ToString());
+                throw new Exception("Se produjo un error al activar el usuario: " + ex.ToString());
+            }
+            return resultado;
+        }
+
     }
 
 }

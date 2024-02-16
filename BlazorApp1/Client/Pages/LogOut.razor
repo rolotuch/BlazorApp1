@@ -1,7 +1,9 @@
 ﻿@page "/CerrarSesion"
+@* @using BlazorApp1.Client.Servicios *@
 @inject NavigationManager navigationmanager
 @inject AuthenticationStateProvider authenticationStateProvider
 @inject ILogger<LogOut> l;
+@* @inject IServicioTienda servicioTienda *@
 
 @if (mostrarError)
 {

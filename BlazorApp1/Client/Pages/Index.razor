@@ -3,12 +3,12 @@
 @page "/"
 @inject HttpClient ClientHttp
 @inject NavigationManager navigationManager
+@using BlazorApp1.Client.Servicios
 @using BlazorApp1.Shared
 @inject AuthenticationStateProvider authenticationStateProvider
 @inject ILogger<Index> l;
-@using System.Net.Http.Headers
-@using Microsoft.Extensions.Configuration;
-@inject IConfiguration Configuration
+ 
+ @inject IServicioTienda servicioTienda
 
 
 <br />
@@ -124,36 +124,47 @@
     //para manejo de token
     String tokenPeticion = String.Empty;
 
+    // tambien se convirtio en servicio por lo que se actualizo esto
     protected async override Task OnInitializedAsync()
     {
         try
         {
-            tokenPeticion = await ObtenerToken();
+            tokenPeticion = await servicioTienda.ObtenerToken();
             var estadoAutenticaion = await authenticationStateProvider.GetAuthenticationStateAsync();
             var user = estadoAutenticaion.User;
             if (user.Identity.IsAuthenticated)
             {
-                ClientHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
-                u = await ClientHttp.GetFromJsonAsync<Usuario>("api/DatosUsaurio/" + user.Identity.Name);
-                comprobarError(u.error);
-                resultado = await ClientHttp.GetFromJsonAsync<List<Cursos>>("api/DameCursos/" + user.Identity.Name);
+                // ClientHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
+                // u = await ClientHttp.GetFromJsonAsync<Usuario>("api/DatosUsaurio/" + user.Identity.Name);
+                // comprobarError(u.error);
+                // resultado = await ClientHttp.GetFromJsonAsync<List<Cursos>>("api/DameCursos/" + user.Identity.Name);
                 //comprobarError(resultado[0].error);
+                u = await servicioTienda.DatosUsaurio(tokenPeticion, user.Identity.Name);
+                servicioTienda.comprobarError(u.error);
+                resultado = await servicioTienda.DameCursos(tokenPeticion, user.Identity.Name);
+
 
                 if (resultado!.Count > 0)
-                    comprobarError(resultado[0].error!);
+                    servicioTienda.comprobarError(resultado[0].error!);
+
+                StateHasChanged();
             }
             else
             {
-                ClientHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
-                resultado = await ClientHttp.GetFromJsonAsync<List<Cursos>>("api/DameCursos");
+                //ClientHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
+                //resultado = await ClientHttp.GetFromJsonAsync<List<Cursos>>("api/DameCursos");
+                resultado = await servicioTienda.DameCursos(tokenPeticion);                
                 if (resultado.Count > 0)
-                    comprobarError(resultado[0].error!);
+                    servicioTienda.comprobarError(resultado[0].error!);
+
+                StateHasChanged();
             }
         }
         catch (Exception ex)
         {
             l.LogError("Se produjo un error: " + ex.ToString());
             mostrarError = true;
+            StateHasChanged();
             // Capa error generica
         }
     }
@@ -213,14 +224,19 @@
             {
                 u.ListaCursos = cursosSeleccionados;
 
-                var respuesta = await ClientHttp.PostAsJsonAsync("api/GuardarCursos", u);
+                //var respuesta = await ClientHttp.PostAsJsonAsync("api/GuardarCursos", u);
+                var respuesta = await servicioTienda.GuardarCursos(tokenPeticion, u);
 
                 if (respuesta.IsSuccessStatusCode)
                 {
-                    mostrarCapaPedido = false;
+                    Usuario usuarioRespuesta = await respuesta.Content.ReadFromJsonAsync<Usuario>();
+                    servicioTienda.comprobarError(u.error);
+                    //mostrarCapaPedido = false;
                     pedidoEfectuado = true;
                     StateHasChanged();
                 }
+                else
+                    throw new Exception("Intentelo de nuevo se produjo un error");
             }
         }
         catch (Exception ex)
@@ -236,51 +252,12 @@
         navigationManager.NavigateTo("/MisCursos");
     }
 
-    private void comprobarError(Error error)
-    {
-        if (error != null)
-        {
-            if (error.mostrarEnPantalla)
-            {
-                //Capa error con mensaje para usuario
-                mostrarError = true;
-                mensajeError = error.mensaje;
-                StateHasChanged();
-            }
-            else
-            {
-                // Capa error generica
-                l.LogError("Se produjo un error: " + error.mensaje);
-                throw new Exception("Intentelo de nuevo se produjo un error");
-            }
-        }
-    }
+    //se elimino el metodo de mostrar error porque se paso como servicio al igual que generar token
 
     private void cerrarCapa()
     {
         mostrarError = false;
     }
 
-    private async Task<string> ObtenerToken()
-    {
-        LoginApi loginApi = new LoginApi();
-
-        string token = String.Empty;
-        loginApi.usuarioAPI = Configuration.GetValue<string>("DatosVarios:UsuarioAPI");
-        loginApi.passAPI = Configuration.GetValue<string>("DatosVarios:PassAPI");
-
-        var respuesta = await ClientHttp.PostAsJsonAsync("api/Login", loginApi);
-
-        if (respuesta.IsSuccessStatusCode)
-        {
-            UsuarioApi usuarioAPI = await respuesta.Content.ReadFromJsonAsync<UsuarioApi>();
-            comprobarError(u.error);
-            token = usuarioAPI.Token;
-
-        }
-        else
-            throw new Exception("Se produjo un error");
-
-        return token;
-    }
+    
 }

@@ -11,5 +11,8 @@ namespace BlazorApp1.Server.Repositorio
         public Task<Usuario> DameUsuario(string email);
         public Task<IEnumerable<Cursos>> DameCursos(string email);
         public Task<IEnumerable<Cursos>> DameCursos(int idUsuario);
+        public Task<UsuarioLogIn> CambiarPass(UsuarioLogIn usuarioLogIn);
+        public Task<UsuarioLogIn> ConfirmarAlta(String email);
+        
     }
 }

@@ -1,0 +1,60 @@
+﻿@page "/ConfirmarAlta/{i}"
+@using BlazorApp1.Client.Servicios
+@inject NavigationManager navigationmanager
+@inject AuthenticationStateProvider authenticationStateProvider
+@inject HttpClient ClienteHttp
+@inject ILogger<ConfirmacionAlta> l;
+@* @using Microsoft.Extensions.Configuration;
+@using System.Net.Http.Headers *@
+@* @inject IConfiguration  Configuration *@
+@inject IServicioTienda servicioTienda
+
+@if (mostrarError)
+{
+    <DetallesError OnCerrar="@(() => cerrarCapa())" TextoError="@mensajeError"></DetallesError>
+}
+
+@code {
+    [Parameter]
+    public string? i { get; set; }
+
+    String mensajeError = String.Empty;
+    String tokenPeticion = String.Empty;
+    Boolean mostrarError = false;
+    // UsuarioLogIn usuarioLogin = new UsuarioLogIn();
+    // se convirtio en servio por lo que se actualizo esto
+    protected async override Task OnInitializedAsync()
+    {
+        try
+        {
+            tokenPeticion = await servicioTienda.ObtenerToken();
+            var respuesta = await servicioTienda.ConfirmarAlta(tokenPeticion, i);
+
+            // ClienteHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
+            // string email = await ClienteHttp.GetStringAsync("api/DesCifrar/" + i);
+            // usuarioLogin.EmailLogin = email;
+            // usuarioLogin.Password = "NO SE UTILIZA";
+            // var respuesta = await ClienteHttp.PostAsJsonAsync("api/ConfirmarAlta", usuarioLogin);
+
+            if (respuesta.IsSuccessStatusCode)
+            {
+                navigationmanager.NavigateTo("/IniciarSesion", true);
+            }
+            else
+                throw new Exception("Intentelo de nuevo se produjo error al validar el usuario");
+
+        }
+        catch (Exception ex)
+        {
+            l.LogError("Se produjo un error: " + ex.ToString());
+            mostrarError = true;
+        }
+    }
+    //aca estaba el metodo para obtener el token pero este se convirtio a un servicio por lo que se quito de aca
+    //tambien se elimino el metodo de comprobar error
+
+    private void cerrarCapa()
+    {
+        mostrarError = false;
+    }
+}

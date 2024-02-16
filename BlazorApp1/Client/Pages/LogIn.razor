@@ -1,12 +1,15 @@
 ﻿@page "/IniciarSesion"
+@using BlazorApp1.Client.Servicios
 @inject HttpClient ClienteHttp
 @inject ISessionStorageService almacenarSesion
 @inject NavigationManager navigationmanager
 @inject AuthenticationStateProvider authenticationStateProvider
 @inject ILogger<LogIn> l;
-@using System.Net.Http.Headers
+@* @using System.Net.Http.Headers
 @using Microsoft.Extensions.Configuration;
-@inject IConfiguration Configuration
+@inject IConfiguration Configuration *@
+
+@inject IServicioTienda servicioTienda
 
 @inherits LayoutComponentBase
 
@@ -89,7 +92,7 @@
     {
         try
         {
-            tokenPeticion = await ObtenerToken();
+            tokenPeticion = await servicioTienda.ObtenerToken();
             var estadoAutenticaion = await authenticationStateProvider.GetAuthenticationStateAsync();
             var user = estadoAutenticaion.User;
             if (user.Identity!.IsAuthenticated)
@@ -112,8 +115,9 @@
         {
             if (usuarioLogin.EmailLogin != null && usuarioLogin.Password != null)
             {
-                ClienteHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
-                var respuesta = await ClienteHttp.PostAsJsonAsync("api/ValidarUsuario", usuarioLogin);
+                var respuesta = await servicioTienda.ValidarUsuario(tokenPeticion, usuarioLogin);
+                // ClienteHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
+                // var respuesta = await ClienteHttp.PostAsJsonAsync("api/ValidarUsuario", usuarioLogin);
                 if (respuesta.IsSuccessStatusCode)
                 {
                     UsuarioLogIn usuarioLogInRespuesta = await respuesta.Content.ReadFromJsonAsync<UsuarioLogIn>();
@@ -156,52 +160,7 @@
         mostrarError = false;
     }
 
-    private async Task<string> ObtenerToken()
-    {
-        LoginApi loginApi = new LoginApi();
-
-        string token = String.Empty;
-        loginApi.usuarioAPI = Configuration.GetValue<string>("DatosVarios:UsuarioAPI");
-        loginApi.passAPI = Configuration.GetValue<string>("DatosVarios:PassAPI");
-
-        var respuesta = await ClienteHttp.PostAsJsonAsync("api/Login", loginApi);
-
-        if (respuesta.IsSuccessStatusCode)
-        {
-            UsuarioApi usuarioAPI = await respuesta.Content.ReadFromJsonAsync<UsuarioApi>();
-            comprobarError(usuarioAPI.error);
-            token = usuarioAPI.Token;
-
-        }
-        else
-            throw new Exception("Se produjo un error");
-
-        return token;
-    }
-
-    private void comprobarError(Error error)
-    {
-
-        if (error != null)
-        {
-            if (error.mostrarEnPantalla)
-            {
-                if (muestraCapaPass)
-                    muestraCapaPass = false;
-
-                mostrarError = true;
-                mensajeError = error.mensaje;
-                StateHasChanged();
-
-            }
-            else
-            {
-                l.LogError("Se produjo un error: " + error.mensaje);
-                throw new Exception("Intentelo de nuevo se produjo un error");
-            }
-        }
-    }
-
+    //se elimino el metodo de mostrar error porque se paso como servicio al igual que generar token
     private void RecuperarPass()
     {
         textoAux = String.Empty;
@@ -218,7 +177,6 @@
         textoAux = e;
     }
 
-
     private async void cambiarPass()
     {
         try
@@ -227,22 +185,23 @@
                 textoAux = "No especificado";
             //Validamos que el email introducido existe en nuestro sistema. No agregamos el token porque ya lo
             // tenemos incrustado
-            usuarioAux = await ClienteHttp.GetFromJsonAsync<Usuario>("api/DatosUsaurio/" + textoAux);
+            // usuarioAux = await ClienteHttp.GetFromJsonAsync<Usuario>("api/DatosUsaurio/" + textoAux);
+            usuarioAux = await servicioTienda.DatosUsaurio(tokenPeticion, textoAux);
             if (usuarioAux.error == null)
             {
-                urlResultado = "https://localhost:7070/CambioPass" + " resto cadena a generar";
+                // string parametro = await ClienteHttp.GetStringAsync("api/Cifrar/" + textoAux);
+                string parametro = await servicioTienda.Cifrar(tokenPeticion, textoAux);
+                urlResultado = "https://localhost:7070/CambioPass/" + parametro;
                 StateHasChanged();
             }
             else
-                comprobarError(usuarioAux.error);
+                servicioTienda.comprobarError(usuarioAux.error);
         }
         catch (Exception ex)
         {
             l.LogError("Se produjo un error: " + ex.ToString());
-            mostrarError = false;
+            mostrarError = true;
+            StateHasChanged();
         }
-
-
     }
-
 }
