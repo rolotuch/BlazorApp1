@@ -1,0 +1,42 @@
+﻿@inherits LayoutComponentBase
+
+<div class="barra-superior">
+    <img class="logo" src="/imagenes/Logo.png" />
+
+    <NavLink href="/" class="navegacion-tab" Match="NavLinkMatch.All">
+        <img src="/imagenes/biblioteca.svg" />
+    </NavLink>
+
+    <AuthorizeView>
+        <Authorized>
+            <NavLink href="/Miscursos" class="navegacion-tab" Match="NavLinkMatch.All">
+                <img src="/imagenes/files.svg" />
+            </NavLink>
+        </Authorized>
+    </AuthorizeView>
+
+
+    <AuthorizeView>
+        <NotAuthorized>
+            <NavLink href="/AltaUsuario" class="usuario" Match="NavLinkMatch.All">
+                <img src="/imagenes/nuevoUsuario.svg" />
+            </NavLink>
+
+            <NavLink href="/IniciarSesion" class="navegacion-tab" Match="NavLinkMatch.All">
+                <img src="/imagenes/Login.svg" />
+            </NavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+
+    <AuthorizeView>
+        <Authorized>
+            <NavLink href="/CerrarSesion" class="usuario" Match="NavLinkMatch.All">
+                <img src="/imagenes/logout.svg" />
+            </NavLink>
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+<div class="content">
+    @Body
+</div>

@@ -1,0 +1,248 @@
+﻿@page "/IniciarSesion"
+@inject HttpClient ClienteHttp
+@inject ISessionStorageService almacenarSesion
+@inject NavigationManager navigationmanager
+@inject AuthenticationStateProvider authenticationStateProvider
+@inject ILogger<LogIn> l;
+@using System.Net.Http.Headers
+@using Microsoft.Extensions.Configuration;
+@inject IConfiguration Configuration
+
+@inherits LayoutComponentBase
+
+
+
+<div class="main">
+    <div class="card" style="width: 32rem;">
+        <div class="card-header">
+            Iniciar Sessión
+        </div>
+        <div class="card-body">
+            <EditForm Model="@usuarioLogin" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <div>
+                    <h3 style="font-weight:bold; color:sienna">Iniciar Sesión</h3>
+                </div>
+                <div>
+                    <br />
+                </div>
+                <div class="form-group row">
+                    <InputText class="form-control col-12" @bind-Value="usuarioLogin.EmailLogin" placeholder="Email" />
+                    <ValidationMessage For="@(() => usuarioLogin.EmailLogin)" />
+                </div>
+                <br />
+                <div class="form-group row">
+                    <InputText type="password" class="form-control col-12" @bind-Value="usuarioLogin.Password" placeholder="Password" />
+                    <ValidationMessage For="@(() => usuarioLogin.Password)" />
+
+                </div>
+                <br />
+                <div class="form-group row">
+                    <input type="submit" class="form-control" value="Login" @onclick="ValidarUsuario" />
+                </div>
+                <div>
+                    <br />
+                </div>
+                <div class="form-group row">
+                    <a href="/AltaUsuario" class="form-control">Darse de alta</a>
+                </div>
+            </EditForm>
+        </div>
+
+        <div class="card-footer">
+            <div class="form-group row">
+                <input type="submit" class="form-control" value="Recuperar password" @onclick="RecuperarPass" />
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (mostrarError)
+{
+    <DetallesErrores OnCerrar="@(() => cerrarCapa())" TextoError="@mensajeError"></DetallesErrores>
+}
+
+@if (muestraCapaPass)
+{
+    <RecordarPass OnCambiarPassword="cambiarPass" OnCerrar="cerrarCapaPass"
+                  valorActual="@textoAux" CambioTexto="cambioTexto" url="@urlResultado"></RecordarPass>
+}
+
+
+@code {
+
+    UsuarioLogIn usuarioLogin = new UsuarioLogIn();
+    Boolean mostrarError = false;
+    String mensajeError = String.Empty;
+    String tokenPeticion = String.Empty;
+    Boolean muestraCapaPass = false;
+    Usuario usuarioAux;
+    String textoAux = String.Empty;
+    String urlResultado = String.Empty;
+
+    public void HandleValidSubmit()
+    {
+        Console.WriteLine("OnValidSubmit");
+    }
+
+    protected async override Task OnInitializedAsync()
+    {
+        try
+        {
+            tokenPeticion = await ObtenerToken();
+            var estadoAutenticaion = await authenticationStateProvider.GetAuthenticationStateAsync();
+            var user = estadoAutenticaion.User;
+            if (user.Identity!.IsAuthenticated)
+            {
+                StateHasChanged();
+                navigationmanager.NavigateTo("/MisCursos");
+            }
+        }
+        catch (Exception ex)
+        {
+            l.LogError("Se produjo un error: " + ex.ToString());
+            mostrarError = true;
+            // Capa error generica
+        }
+    }
+
+    private async void ValidarUsuario()
+    {
+        try
+        {
+            if (usuarioLogin.EmailLogin != null && usuarioLogin.Password != null)
+            {
+                ClienteHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
+                var respuesta = await ClienteHttp.PostAsJsonAsync("api/ValidarUsuario", usuarioLogin);
+                if (respuesta.IsSuccessStatusCode)
+                {
+                    UsuarioLogIn usuarioLogInRespuesta = await respuesta.Content.ReadFromJsonAsync<UsuarioLogIn>();
+                    if (usuarioLogInRespuesta.error == null || usuarioLogInRespuesta.error.mensaje == String.Empty)
+                    {
+                        await almacenarSesion.SetItemAsync("email", usuarioLogin.EmailLogin);
+                        navigationmanager.NavigateTo("/MisCursos", true);
+                    }
+                    else
+                    {
+                        if (usuarioLogInRespuesta.error.mostrarEnPantalla)
+                        {
+                            //Capa error con mensaje para usuario
+                            mostrarError = true;
+                            mensajeError = usuarioLogInRespuesta.error.mensaje;
+                            StateHasChanged();
+                        }
+                        else
+                        {
+                            // Capa error generica
+                            l.LogError("Se produjo un error: " + usuarioLogInRespuesta.error.mensaje);
+                            throw new Exception("Intentelo de nuevo se produjo un error");
+                        }
+                    }
+                }
+                else
+                    throw new Exception("Intentelo de nuevo se produjo un error");
+            }
+        }
+        catch (Exception ex)
+        {
+            l.LogError("Se produjo un error: " + ex.ToString());
+            // Capa error generica
+            mostrarError = true;
+        }
+    }
+
+    private void cerrarCapa()
+    {
+        mostrarError = false;
+    }
+
+    private async Task<string> ObtenerToken()
+    {
+        LoginApi loginApi = new LoginApi();
+
+        string token = String.Empty;
+        loginApi.usuarioAPI = Configuration.GetValue<string>("DatosVarios:UsuarioAPI");
+        loginApi.passAPI = Configuration.GetValue<string>("DatosVarios:PassAPI");
+
+        var respuesta = await ClienteHttp.PostAsJsonAsync("api/Login", loginApi);
+
+        if (respuesta.IsSuccessStatusCode)
+        {
+            UsuarioApi usuarioAPI = await respuesta.Content.ReadFromJsonAsync<UsuarioApi>();
+            comprobarError(usuarioAPI.error);
+            token = usuarioAPI.Token;
+
+        }
+        else
+            throw new Exception("Se produjo un error");
+
+        return token;
+    }
+
+    private void comprobarError(Error error)
+    {
+
+        if (error != null)
+        {
+            if (error.mostrarEnPantalla)
+            {
+                if (muestraCapaPass)
+                    muestraCapaPass = false;
+
+                mostrarError = true;
+                mensajeError = error.mensaje;
+                StateHasChanged();
+
+            }
+            else
+            {
+                l.LogError("Se produjo un error: " + error.mensaje);
+                throw new Exception("Intentelo de nuevo se produjo un error");
+            }
+        }
+    }
+
+    private void RecuperarPass()
+    {
+        textoAux = String.Empty;
+        muestraCapaPass = true;
+    }
+
+    private void cerrarCapaPass()
+    {
+        muestraCapaPass = false;
+    }
+
+    private void cambioTexto(string e)
+    {
+        textoAux = e;
+    }
+
+
+    private async void cambiarPass()
+    {
+        try
+        {
+            if (textoAux == String.Empty)
+                textoAux = "No especificado";
+            //Validamos que el email introducido existe en nuestro sistema. No agregamos el token porque ya lo
+            // tenemos incrustado
+            usuarioAux = await ClienteHttp.GetFromJsonAsync<Usuario>("api/DatosUsaurio/" + textoAux);
+            if (usuarioAux.error == null)
+            {
+                urlResultado = "https://localhost:7070/CambioPass" + " resto cadena a generar";
+                StateHasChanged();
+            }
+            else
+                comprobarError(usuarioAux.error);
+        }
+        catch (Exception ex)
+        {
+            l.LogError("Se produjo un error: " + ex.ToString());
+            mostrarError = false;
+        }
+
+
+    }
+
+}

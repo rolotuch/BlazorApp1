@@ -1,0 +1,195 @@
+﻿@page "/AltaUsuario"
+@inject NavigationManager navigationManager
+@inject HttpClient ClienteHttp
+@* lo pasmaos a import.razor para hacerlo para todos  *@
+@* @using Microsoft.Extensions.Logging *@
+@inject ILogger<AltaUsuario> l;
+@using System.Net.Http.Headers
+@using Microsoft.Extensions.Configuration;
+@inject IConfiguration Configuration
+
+<br />
+<div class="main">
+    <EditForm Model="@nuevoUsuario" OnValidSubmit="HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <h3>Nuevo Usuario</h3>
+        <hr />
+        <ValidationSummary />
+        <div class="row">
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="basic-addon1">Nombre</span>
+                <InputText id="Nombre" class="form-control" placeholder=""
+                           @bind-Value="nuevoUsuario.Nombre" />
+
+            </div>
+            <ValidationMessage For="@(() => nuevoUsuario.Nombre)" />
+        </div>
+        <div class="row">
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="basic-addon1">Apellido</span>
+                <InputText id="Apellido" class="form-control" placeholder=""
+                           @bind-Value="nuevoUsuario.Apellido" />
+
+            </div>
+            <ValidationMessage For="@(() => nuevoUsuario.Apellido)" />
+        </div>
+
+        <div class="row">
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="basic-addon1">Email</span>
+                <InputText id="Email" class="form-control" placeholder=""
+                           @bind-Value="nuevoUsuario.Email" />
+
+            </div>
+            <ValidationMessage For="@(() => nuevoUsuario.Email)" />
+        </div>
+        <div class="row">
+            <div class="input-group mb-3">
+                <span class="input-group-text" id="basic-addon1">Contraseña</span>
+                <InputText type="password" id="password" class="form-control" placeholder=""
+                           @bind-Value="nuevoUsuario.Password" />
+
+            </div>
+            <ValidationMessage For="@(() => nuevoUsuario.Password)" />
+        </div>
+
+        <div class="row content">
+            <div class="col-md-1">
+                <input type="submit" class="btn btn-primary" value="Guardar" @onclick="NuevaAlta" />
+            </div>
+            <div class="col-md-2">
+                <input type="button" value="Cancelar" class="btn btn-danger" @onclick="Cancelar" />
+            </div>
+        </div>
+    </EditForm>
+</div>
+
+@if (mostrarError)
+{
+    <DetallesErrores OnCerrar="@(() => cerrarCapa())" TextoError="@mensajeError"> </DetallesErrores>
+}
+
+
+@code {
+    Usuario nuevoUsuario = new Usuario();
+    Boolean mostrarError = false;
+    String mensajeError = String.Empty;
+    String tokenPeticion = String.Empty;
+
+    public void HandleValidSubmit()
+    {
+        Console.WriteLine("OnValidSubmit");
+    }
+
+    protected async override Task OnInitializedAsync()
+    {
+        try
+        {
+            tokenPeticion = await ObtenerToken();
+        }
+        catch (Exception ex)
+        {
+            l.LogError("Se produjo un error: " + ex.ToString());
+            mostrarError = true;
+        }
+    }
+
+    async protected void NuevaAlta()
+    {
+        try
+        {
+            if (nuevoUsuario.Email != null && nuevoUsuario.Password != null &&
+                nuevoUsuario.Nombre != null && nuevoUsuario.Apellido != null)
+            {
+                ClienteHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
+                var respuesta = await ClienteHttp.PostAsJsonAsync("api/AltaUsuario", nuevoUsuario);
+
+                if (respuesta.IsSuccessStatusCode)
+                {
+                    Usuario usuarioRespuesta = await respuesta.Content.ReadFromJsonAsync<Usuario>();
+
+                    if (usuarioRespuesta.error == null || usuarioRespuesta.error.mensaje == String.Empty)
+                        navigationManager.NavigateTo("/LogIn");
+                    else
+                    {
+                        if (usuarioRespuesta.error.mostrarEnPantalla)
+                        {
+                            //Capa error con mensaje para usuario
+                            mostrarError = true;
+                            mensajeError = usuarioRespuesta.error.mensaje;
+                            StateHasChanged();
+
+                        }
+                        else
+                        {
+                            // Capa error generica
+                            l.LogError("Se produjo un error: " + usuarioRespuesta.error.mensaje);
+                            throw new Exception("Intentelo de nuevo se produjo un error");
+                        }
+                    }
+                }
+                else
+                    throw new Exception("Intentelo de nuevo se produjo un error");
+            }
+        }
+        catch (Exception ex)
+        {
+            l.LogError("Se produjo un error: " + ex.ToString());
+            mostrarError = true;
+            // Capa error generica
+        }
+    }
+
+    protected void Cancelar()
+    {
+        //Redirigiremos a la página de Login
+        navigationManager.NavigateTo("/");
+    }
+    private void cerrarCapa()
+    {
+        mostrarError = false;
+    }
+
+    private async Task<string> ObtenerToken()
+    {
+    LoginApi loginApi = new LoginApi();
+
+    string token = String.Empty;
+    loginApi.usuarioAPI = Configuration.GetValue<string>("DatosVarios:UsuarioAPI");
+    loginApi.passAPI = Configuration.GetValue<string>("DatosVarios:PassAPI");
+
+    var respuesta = await ClienteHttp.PostAsJsonAsync("api/Login", loginApi);
+
+    if (respuesta.IsSuccessStatusCode)
+    {
+        UsuarioApi usuarioAPI = await respuesta.Content.ReadFromJsonAsync<UsuarioApi>();
+    comprobarError(usuarioAPI.error);
+    token = usuarioAPI.Token;
+
+    }
+    else
+        throw new Exception("Se produjo un error");
+
+    return token;
+    }
+
+private void comprobarError(Error error)
+{
+
+    if (error != null)
+    {
+    if (error.mostrarEnPantalla)
+    {
+        mostrarError = true;
+        mensajeError = error.mensaje;
+        StateHasChanged();
+
+    }
+    else
+    {
+        l.LogError("Se produjo un error: " + error.mensaje);
+        throw new Exception("Intentelo de nuevo se produjo un error");
+    }
+    }
+}
+}

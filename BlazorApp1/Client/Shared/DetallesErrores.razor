@@ -1,0 +1,29 @@
+﻿<div class="modal bg-secondary" tabindex="-1" style="display:block;" role="dialog">
+    <div class="modal-dialog modal-dialog-scrollable modal-ms ">
+        <div class="modal-content ">
+            <div class="modal-header">
+                <h2>Error</h2>
+                <buton class="btn btn-danger" style="cursor:pointer" @onclick="OnCerrar">X</buton>
+            </div>
+            <div class="row">
+                <div class="pedido-contenido">
+                    @if (TextoError == String.Empty)
+                    {
+                        <p class="text-danger">Se produjo un error inseperado vuelva a intentarlo en unos minutos.</p>
+                    }
+                    else
+                    {
+                        <p class="text-danger">@TextoError</p>
+                    }
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnCerrar { get; set; }
+    [Parameter] public String TextoError { get; set; }
+
+}

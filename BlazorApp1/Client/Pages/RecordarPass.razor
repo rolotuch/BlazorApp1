@@ -1,0 +1,43 @@
+﻿<div class="modal bg-secondary" tabindex="-1" style="display:block;" role="dialog">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg ">
+        <div class="modal-content ">
+            <div class="modal-header">
+                <h2>Recordar Password</h2>
+                <buton class="btn btn-danger" style="cursor:pointer" @onclick="OnCerrar">X</buton>
+            </div>
+            <div class="row">
+                <div class="pedido-contenido">
+                    <input type="text" @bind="@valorActual" class="form-control col-12" placeholder="Email"
+                           @oninput="OnValueChanged" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="pedido-contenido">
+                    <input type="submit" class="form-control col-12 btn btn-primary" value="Cambiar Password" @onclick="OnCambiarPassword" />
+                </div>
+            </div>
+            <div class="row">
+                <div class="pedido-contenido">
+                    @url
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    [Parameter] public EventCallback OnCerrar { get; set; }
+    [Parameter] public EventCallback OnCambiarPassword { get; set; }
+    [Parameter] public string valorActual { get; set; }
+    [Parameter] public EventCallback<String> CambioTexto { get; set; }
+    [Parameter] public string url { get; set; }
+
+
+    private Task OnValueChanged(ChangeEventArgs e)
+    {
+        valorActual = e.Value.ToString();
+        return CambioTexto.InvokeAsync(valorActual);
+    }
+
+}

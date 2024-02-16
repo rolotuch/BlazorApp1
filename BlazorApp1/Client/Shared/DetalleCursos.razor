@@ -1,0 +1,31 @@
+﻿<div class="modal bg-secondary" tabindex="-1" style="display:block;" role="dialog">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg ">
+        <div class="modal-content ">
+            <div class="modal-header">
+                <h4 class="modal-title">@curso.Nombre</h4>               
+            </div>
+            <div class="modal-header">
+                <strong> Este curso esta disponible a un precio de: @curso.Precio!.PrecioVenta.ToString() €</strong>
+            </div>
+
+            <div class="modal-body">
+                <p>@curso.Descripcion</p>
+                <pre> <span class="font-weight-bold"> @curso.Programa </span> </pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-dismiss="modal" @onclick="OnCancelar">Cerrar</button>
+                <button type="button" class="btn btn-success" @onclick="OnAgregar">Agregar</button>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Cursos curso { get; set; }
+    [Parameter]
+    public EventCallback OnCancelar { get; set; }
+    [Parameter]
+    public EventCallback OnAgregar { get; set; }
+}

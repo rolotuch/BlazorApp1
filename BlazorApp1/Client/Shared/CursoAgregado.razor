@@ -1,0 +1,12 @@
+﻿<div class="elementoCarrito">
+    <a @onclick="OnBorrar" class="borrarElemento">x</a>
+    <div class="texto">
+        @(curso!.Nombre) :
+        <strong>@curso.Precio.PrecioVenta.ToString() €</strong>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Cursos curso { get; set; }
+    [Parameter] public EventCallback OnBorrar { get; set; }
+}

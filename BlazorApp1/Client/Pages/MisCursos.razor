@@ -1,0 +1,133 @@
+﻿@page "/MisCursos"
+@inject NavigationManager navigationManager
+@inject HttpClient ClienteHttp
+@inject AuthenticationStateProvider authenticationStateProvider
+@inject ILogger<MisCursos> l;
+@using System.Net.Http.Headers
+@using Microsoft.Extensions.Configuration;
+@inject IConfiguration Configuration
+
+<br />
+<div class="main">
+    <AuthorizeView>
+        <Authorized>
+            <h1>Mis cursos</h1>
+            @if (resultado == null || resultado.Count == 0)
+            {
+                <p class="text-danger">No te has inscrito en nigún curso de los disponibles</p>
+            }
+            else
+            {
+                <table class="table table-hover">
+                    <tbody>
+                        @foreach (Cursos c in resultado)
+                        {
+                            <tr>
+                                <td>
+                                    <img src="/@c.RutaImagen" alt="@c.Nombre" width="150" height="80">
+                                    <strong>@c.Nombre</strong>
+                                </td>
+                            </tr>
+                        }
+
+                    </tbody>
+                </table>
+            }
+
+        </Authorized>
+        <NotAuthorized>
+            No Autorizado
+        </NotAuthorized>
+    </AuthorizeView>
+</div>
+
+@if (mostrarError)
+{
+    <DetallesErrores OnCerrar="@(() => cerrarCapa())" TextoError="@mensajeError"></DetallesErrores>
+}
+
+@code
+{
+    Usuario u = new Usuario();
+    List<Cursos> resultado = new List<Cursos>();
+    Boolean mostrarError = false;
+    String mensajeError = String.Empty;
+    String tokenPeticion = String.Empty;
+
+
+    protected async override Task OnInitializedAsync()
+    {
+        try
+        {
+            tokenPeticion = await ObtenerToken();
+            var estadoAutenticaion = await authenticationStateProvider.GetAuthenticationStateAsync();
+            var user = estadoAutenticaion.User;
+            if (user.Identity.IsAuthenticated)
+            {
+                ClienteHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
+                u = await ClienteHttp.GetFromJsonAsync<Usuario>("api/DatosUsaurio/" + user.Identity.Name);
+                if (resultado.Count > 0)
+                    comprobarError(u.error);
+
+                ClienteHttp.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenPeticion);
+                resultado = await ClienteHttp.GetFromJsonAsync<List<Cursos>>("api/DameCursosUsuario/" + u.Id);
+                if (resultado.Count > 0)
+                    comprobarError(resultado[0].error);
+            }
+        }
+        catch (Exception ex)
+        {
+            l.LogError("Se produjo un error: " + ex.ToString());
+            // Capa error generica
+            mostrarError = true;
+        }
+    }
+
+    private void comprobarError(Error error)
+    {
+        if (error != null)
+        {
+            if (error.mostrarEnPantalla)
+            {
+                //Capa error con mensaje para usuario
+                mostrarError = true;
+                mensajeError = error.mensaje;
+                StateHasChanged();
+            }
+            else
+            {
+                // Capa error generica
+                l.LogError("Se produjo un error: " + error.mensaje);
+                throw new Exception("Intentelo de nuevo se produjo un error");
+            }
+        }
+    }
+
+    private void cerrarCapa()
+    {
+        mostrarError = false;
+    }
+
+    private async Task<string> ObtenerToken()
+    {
+        LoginApi loginApi = new LoginApi();
+
+        string token = String.Empty;
+        loginApi.usuarioAPI = Configuration.GetValue<string>("DatosVarios:UsuarioAPI");
+        loginApi.passAPI = Configuration.GetValue<string>("DatosVarios:PassAPI");
+
+        var respuesta = await ClienteHttp.PostAsJsonAsync("api/Login", loginApi);
+
+        if (respuesta.IsSuccessStatusCode)
+        {
+            UsuarioApi usuarioAPI = await respuesta.Content.ReadFromJsonAsync<UsuarioApi>();
+            comprobarError(u.error);
+            token = usuarioAPI.Token;
+
+        }
+        else
+            throw new Exception("Se produjo un error");
+
+        return token;
+    }
+}
